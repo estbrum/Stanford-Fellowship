@@ -25,7 +25,7 @@ Informing policy discussions around mental health and social support systems
 
 Highlighting the need for targeted assistance for older adults with depression
 
-##Scope
+## Scope
 
 Population: U.S. adults aged 65 and older
 
