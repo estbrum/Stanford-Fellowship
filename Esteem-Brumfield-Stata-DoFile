@@ -1,0 +1,101 @@
+
+*Please change file path to where you have saved your .dta file 
+use "/Users/esteem/Desktop/randhrs1992_2014v2.respdt_hsehold_svyset.dta"
+
+*In order to capture robust data on depression, a depression variable, depression, incorporates three variables, r12flone, r12fsad, r12effort, that potentially capture the symptoms of depression.
+gen depression=0
+*coding "no depression" as zero and "yes to depression" as 1. The HRS variable r12depres==1 represents respondents answering `yes' to depression. 
+replace depression=1 if r12depres==1
+*r12fsad, r12flone, and r12effort attempt to capture symptoms of depression in those respondents who may not know that they have depression or those who may be reluctant to answer in the affirmative
+replace depression=1 if r12fsad==1 & r12flone==1 & r12effort==1
+* The depression variable accounts for missing observations, unknow responses, decline to answer, and skipped patterns.
+replace depression=. if r12depres==. | r12depres==.s | r12depres==.r | r12depres==.d
+replace depression=. if r12effort==. | r12effort==.s | r12effort==.r | r12effort==.d
+replace depression=. if r12fsad==. | r12fsad==.s | r12fsad==.r | r12fsad==.d
+replace depression=. if r12flone==. | r12flone==.s | r12flone==.r | r12flone==.d
+label define depressionlabel 0 "No Depression" 1 "Despression"
+label value depression depressionlabel
+*The ssdiapp variable represents applications to SSDI/SSI and categorized to show those who applied and those who did not apply
+gen ssdiapp =.
+replace ssdiapp=1 if radstat1>0 & radstat1 <=94
+replace ssdiapp=0 if radstat1==.
+label define applications 0 "Did Not Apply" 1 "Applied"
+label value ssdiapp applications
+*The HRS r12agey_b variable represents the age of respondents at the point of interview. The ages of respondents range from 18-104. For the purposes of this paper, responses only include respondents ages 65 and over
+gen age=r12agey_b
+*The instudy variable includes an analytical sample of 3,628 respondents ages 65 and over who qualify for social security disability. This instudy variable includes those who have a disability, r12hlthlm, which limits their ability to work. The objective of including this variables centers on capturing a population who may qualify for social security disability. 
+gen instudy=0
+replace instudy=1 if r12hlthlm==1 & depression~=. & ssdiapp~=.
+replace instudy=0 if age< 65
+*The age variable categorizes two age groups in order to determine potential differences in depression by age in those 65 and over
+recode age 18/64=0 65/84=1 85/104=2 
+label define agegroup 0 "18-64" 1 "65-84" 2 "85-104"
+label value age agegroup
+*In Table 1, I created three categories for the age variable. The categories included ages 18-64, 65-84, 85-104. For table2, I'm creating a binary category with "65-84" coded as 1 and "85+" coded as 0.
+gen age6584=age==1
+*The two race variables control for potential confounders between race and depressions for those who apply for ssdi
+gen race=raracem
+label define racelabel 1 "White/caucasian" 2 "Black/african american" 3 "Other"
+label value race racelabel
+gen hispanic=rahispan
+label define hispaniclabel 0 "Not Hispanic" 1 "Hispanic"
+label value hispanic hispaniclabel
+*This variable combines all race observations
+gen hisp_race=1 if rahispan==0 & raracem==1
+replace hisp_race=2 if rahispan==0 & raracem==2
+replace hisp_race=3 if rahispan==1
+replace hisp_race=4 if rahispan==0 & raracem==3
+label define allracelabel 1 "White" 2 "Black" 3 "Hispanic" 4 "Other"
+label value hisp_race allracelabel
+*I've created a binary race variable which merges black and latino groups into one response due to sample size. "White" and "Other" have been merged and coded as 0. "Black/latino" have been coded as 1. This coding is for running regression.
+gen black=hisp_race==2
+replace black=1 if hisp_race==3
+table black hisp_race
+*The gender variable controls for potential confounding between gender and depressions for those who apply for ssdi
+gen gender=ragender
+label define genderlabel 1 "Male" 2 "Female"
+label value gender genderlabel
+*I've coded "male" as 0 in order to compare potential barriers in applications by gender which disproportionately impact women.
+gen female=gender==2
+*generating a variable for level of education in order to assess potential confounding. Coded those with at least a high school degree as 0 and those without a high school degree as 1
+gen education=raeduc
+recode education 2/5=0 1=1
+label define educationgroup 0 "HS or More" 1 "No HS Degree"
+label value education education label
+*The poverty variable controls for potential confounding between income levels and depressions for those who apply for ssdi
+gen poverty=h12inpov
+label define povertylabel 0 "Abov Pov Thresh" 1 "Below Pov Thresh"
+label value poverty povertylabel
+gen psychiatric=r12psyche
+label define psychiatriclabel 0 "No Psyche Dis." 1 "Psyche Dis."
+label value psychiatric psychiatriclabel
+*The following STATA commands display the relationship between applying for SSDI and depression, six confounding variables, and applications for ssdi among respondents 65 and over. This command provides data for Table 1.
+svy, subpop(if instudy==1):tab ssdiap depression,row col obs cellwidth(10) format(%15.3g)
+svy, subpop(if instudy==1):tab hisp_race depression,row col obs cellwidth(10) format(%15.3g)
+svy, subpop(if instudy==1):tab gender depression,row col obs cellwidth(10) format(%15.3g)
+svy, subpop(if instudy==1):tab age depression,row col obs cellwidth(10) format(%15.3g)
+svy, subpop(if instudy==1):tab poverty depression,row col obs cellwidth(10) format(%15.3g)
+svy, subpop(if instudy==1):tab education depression,row col obs cellwidth(10) format(%15.3g)
+svy, subpop(if instudy==1):tab r12psyche depression,row col obs cellwidth(10) format(%15.3g)
+*The following commands generate the models for Table two and allow me to compare confounding.
+svy, subpop(if instudy==1):logistic ssdiapp depression
+svy, subpop(if instudy==1):logistic ssdiapp age6584
+svy, subpop(if instudy==1):logistic ssdiapp female
+svy, subpop(if instudy==1):logistic ssdiapp poverty
+svy, subpop(if instudy==1):logistic ssdiapp education
+svy, subpop(if instudy==1):logistic ssdiapp psychiatric
+svy, subpop(if instudy==1):logistic ssdiapp black
+svy, subpop(if instudy==1):logistic ssdiapp depression age6584 black female poverty education r12psyche
+svy, subpop(if instudy==1):logistic ssdiapp depression age6584
+svy, subpop(if instudy==1):logistic ssdiapp depression black
+svy, subpop(if instudy==1):logistic ssdiapp depression female
+svy, subpop(if instudy==1):logistic ssdiapp depression poverty
+svy, subpop(if instudy==1):logistic ssdiapp depression psychiatric
+svy, subpop(if instudy==1):logistic ssdiapp depression education
+*The following commands assess confounding.
+svy, subpop(if instudy==1 &psychiatric==0):logistic ssdiapp depression
+svy, subpop(if instudy==1 &psychiatric==1):logistic ssdiapp depression
+svy, subpop(if instudy==1 &poverty==0):logistic ssdiapp depression
+svy, subpop(if instudy==1 &poverty==1):logistic ssdiapp depression
+svy, subpop(if instudy==1 &education==0):logistic ssdiapp depression
+svy, subpop(if instudy==1 &education==1):logistic ssdiapp depression
